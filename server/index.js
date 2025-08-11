@@ -1,3 +1,5 @@
+const dotenv = require('dotenv')
+dotenv.config({ path: '.env' })
 const express = require("express");
 const morgan = require("morgan");
 const engine = require("ejs-mate");

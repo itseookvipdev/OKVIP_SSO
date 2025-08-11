@@ -8,10 +8,11 @@ const { genJwtToken } = require("./jwt_helper");
 const re = /(\S+)\s+(\S+)/;
 const SALT_ROUNDS = 10;
 
+console.log('process.env.MONGODB_URI', process.env.MONGODB_URI)
 // MongoDB Connection
 const connectDB = async () => {
   try {
-    const dbURI = "mongodb://localhost:27017/sso_server"; // Replace with your MongoDB URI
+    const dbURI = process.env.MONGODB_URI; // Replace with your MongoDB URI
     await mongoose.connect(dbURI, {
       useNewUrlParser: true,
       useUnifiedTopology: true
