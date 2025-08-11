@@ -1,18 +1,15 @@
 const jwt = require("jsonwebtoken");
-const { privateCert } = require("../config").keys;
 
+const SECRET_KEY = "5UUDgBoUBRpdBhh";
 const ISSUER = "sso-node";
 
 const genJwtToken = payload =>
   new Promise((resolve, reject) => {
-    // some of the libraries and libraries written in other language,
-    // expect base64 encoded secrets, so sign using the base64 to make
-    // jwt useable across all platform and langauage.
     jwt.sign(
       { ...payload },
-      privateCert,
+      SECRET_KEY,
       {
-        algorithm: "RS256",
+        algorithm: "HS256",
         expiresIn: "1h",
         issuer: ISSUER
       },

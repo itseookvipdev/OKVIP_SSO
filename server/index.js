@@ -13,24 +13,6 @@ const controller = require("./controller");
 
 const app = express();
 
-// Configure session with MongoDB store
-// app.use(
-//   session({
-//     secret: "relax",
-//     resave: false,
-//     saveUninitialized: false,
-//     store: MongoStore.create({
-//       mongoUrl: "mongodb://127.0.0.1:27017/sso-session",
-//       collectionName: "sessions",
-//     }),
-//     cookie: {
-//       secure: false, // Set to true if using HTTPS
-//       maxAge: 24 * 60 * 60 * 1000, // 1 day
-//       sameSite: 'lax', // Adjust based on client-server interaction
-//     },
-//   })
-// );
-
 controller.connectDB();
 
 app.use(cookieSession({
@@ -43,7 +25,7 @@ app.use(cookieSession({
 
 app.use(
   cors({
-    origin: ["http://127.0.0.1:3001"], // Client URL
+    origin: [process.env.CLIENT1], // Client URL
     credentials: true, // Allow cookies in requests
   })
 );
@@ -54,19 +36,6 @@ app.use((req, res, next) => {
   }
   next();
 });
-
-
-// app.use(
-//   session({
-//     secret: "relax",
-//     resave: false,
-//     saveUninitialized: false,
-//     cookie: {
-//       secure: false, // Set to true if using HTTPS
-//       maxAge: 24 * 60 * 60 * 1000, // 1 day in milliseconds
-//     },
-// }));
-
 
 app.use((req, res, next) => {
   if (!req.session) {

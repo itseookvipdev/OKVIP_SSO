@@ -2,8 +2,8 @@ const url = require("url");
 const axios = require("axios");
 const { URL } = url;
 const { verifyJwtToken } = require("./jwt_verify");
-const validReferOrigin = "http://127.0.0.1:3000";
-const ssoServerJWTURL = "http://127.0.0.1:3000/simplesso/verifytoken";
+const validReferOrigin = process.env.HOST_SSO;
+const ssoServerJWTURL = `${process.env.HOST_SSO}/simplesso/verifytoken`;
 
 const ssoRedirect = () => {
   return async function(req, res, next) {
@@ -18,7 +18,7 @@ const ssoRedirect = () => {
           `${ssoServerJWTURL}?ssoToken=${ssoToken}`,
           {
             headers: {
-              Authorization: "Bearer l1Q7zkOL59cRqWBkQ12ZiGVW2DBL"
+              Authorization: `Bearer ${process.env.CONSUMER_KEY}`
             }
           }
         );

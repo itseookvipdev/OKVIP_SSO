@@ -1,17 +1,18 @@
+const dotenv = require('dotenv')
+dotenv.config({ path: '.env' })
 const express = require("express");
 const morgan = require("morgan");
 const app = express();
 const engine = require("ejs-mate");
 const session = require("express-session");
 const cookieParser = require("cookie-parser");
-const MongoStore = require("connect-mongo");
 
 const isAuthenticated = require("./isAuthenticated");
 const checkSSORedirect = require("./checkSSORedirect");
 
 app.use(
   session({
-    secret: "relax2", // Different secret than SSO server
+    secret: process.env.SESSION_SECRET_KEY, // Different secret than SSO server
     resave: false,
     saveUninitialized: false,
     cookie: {

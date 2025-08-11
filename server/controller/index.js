@@ -109,7 +109,7 @@ const appTokenFromRequest = fromAuthHeaderAsBearerToken();
 
 // app token to validate the request is coming from the authenticated server only.
 const appTokenDB = {
-  sso_consumer: "l1Q7zkOL59cRqWBkQ12ZiGVW2DBL",
+  sso_consumer: "zzWKUktInQIj0O8",
   simple_sso_consumer: "1g0jJwGmRQhJwvwNOrY4i90kD0m"
 };
 
@@ -204,8 +204,12 @@ const generatePayload = async (ssoToken) => {
 const verifySsoToken = async (req, res, next) => {
 
   const appToken = appTokenFromRequest(req);
-  console.log('appToken',appToken)
+  console.log('appToken', appToken)
   const { ssoToken } = req.query;
+  console.log('ssoToken', ssoToken)
+  console.log('intrmTokenCache', intrmTokenCache)
+  console.log('ssoToken in cache?', intrmTokenCache[ssoToken])
+  
   // if the application token is not present or ssoToken request is invalid
   // if the ssoToken is not present in the cache some is
   // smart.
@@ -214,6 +218,11 @@ const verifySsoToken = async (req, res, next) => {
     ssoToken == null ||
     intrmTokenCache[ssoToken] == null
   ) {
+    console.log('Validation failed:', {
+      appTokenNull: appToken == null,
+      ssoTokenNull: ssoToken == null, 
+      tokenNotInCache: intrmTokenCache[ssoToken] == null
+    });
     return res.status(400).json({ message: "badRequest" });
   }
 
