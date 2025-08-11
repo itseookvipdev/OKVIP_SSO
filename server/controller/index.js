@@ -114,9 +114,9 @@ const appTokenDB = {
 };
 
 const alloweOrigin = {
-  "http://127.0.0.1:3001": true,
-  "http://127.0.0.1:3002": true,
-  "http://127.0.0.1:3000": false,
+  "http://localhost:3000": true,
+  "http://localhost:3001": true,
+  "http://localhost:3002": false,
 };
 
 const deHyphenatedUUID = () => uuidv4().replace(/-/gi, "");
@@ -128,8 +128,8 @@ const sessionUser = {};
 const sessionApp = {};
 
 const originAppName = {
-  "http://127.0.0.1:3001": "sso_consumer",
-  "http://127.0.0.1:3002": "simple_sso_consumer",
+  "http://localhost:3001": "sso_consumer",
+  "http://localhost:3002": "simple_sso_consumer",
 };
 
 const userDB = {
@@ -165,9 +165,11 @@ const storeApplicationInCache = (origin, id, intrmToken) => {
 const generatePayload = async (ssoToken) => {
   const globalSessionToken = intrmTokenCache[ssoToken][0];
   const appName = intrmTokenCache[ssoToken][1];
+  console.log('appName', appName)
   const userEmail = sessionUser[globalSessionToken];
   const user = await User.findOne({ email: userEmail });
   const appPolicy = user.appPolicy.get(appName);
+  if(!appPolicy) return {}
   const email = appPolicy.shareEmail === true ? userEmail : undefined;
 
   const jsonObject = {
@@ -202,6 +204,7 @@ const generatePayload = async (ssoToken) => {
 const verifySsoToken = async (req, res, next) => {
 
   const appToken = appTokenFromRequest(req);
+  console.log('appToken',appToken)
   const { ssoToken } = req.query;
   // if the application token is not present or ssoToken request is invalid
   // if the ssoToken is not present in the cache some is
