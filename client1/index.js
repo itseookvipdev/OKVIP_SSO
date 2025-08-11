@@ -40,7 +40,7 @@ const logout = (req, res, next) => {
   const redirectURL = `${req.protocol}://${req.headers.host}${req.path}`;
   req.session.destroy();
   return res.redirect(
-    `http://127.0.0.1:3000/simplesso/logout?serviceURL=${redirectURL}`
+    `${process.env.HOST_SSO}/simplesso/logout?serviceURL=${redirectURL}`
   );
 };
 
