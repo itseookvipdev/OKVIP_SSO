@@ -46,10 +46,51 @@ const logout = (req, res, next) => {
 
 
 app.get("/", isAuthenticated, (req, res, next) => {
+  // User profile is now included in the session from the server
+  const userProfile = req.session.user?.userProfile || null;
+  
   res.render("index", {
-    what: `SSO-Consumer One ${JSON.stringify(req.session.user)}`,
-    title: "SSO-Consumer | Home",
+    what: `SSO-Consumer One`,
+    user: req.session.user,
+    userProfile: userProfile,
+    title: "SSO-Consumer | Home"
   });
+});
+
+// API endpoint to get user profile from session
+app.get("/api/profile", isAuthenticated, (req, res, next) => {
+  const userProfile = req.session.user?.userProfile;
+  
+  if (userProfile) {
+    return res.json(userProfile);
+  } else {
+    return res.status(404).json({ error: "User profile not found in session" });
+  }
+});
+
+// API endpoint to get complete user data for localStorage
+app.get("/api/user-data", isAuthenticated, (req, res, next) => {
+  const userData = {
+    user: req.session.user,
+    userProfile: req.session.user?.userProfile,
+    accessToken: req.session.user?.accessToken,
+    timestamp: new Date().toISOString()
+  };
+  
+  return res.json(userData);
+});
+
+// API endpoint to verify if user is authenticated
+app.get("/api/auth/check", (req, res, next) => {
+  if (req.session && req.session.user) {
+    return res.json({ 
+      authenticated: true, 
+      userId: req.session.user.uid || req.session.user.id,
+      email: req.session.user.email
+    });
+  } else {
+    return res.json({ authenticated: false });
+  }
 });
 
 app.get('/logout', logout);

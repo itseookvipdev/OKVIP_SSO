@@ -11,6 +11,7 @@ router
 router.get("/verifytoken", controller.verifySsoToken);
 router.get("/login", controller.login);
 router.post("/register", controller.registerUser);
+router.post("/refresh", controller.refreshToken);
 router.get("/register", (req, res, next) => {
   res.render("register", {
     title: "SSO-Server | Register",

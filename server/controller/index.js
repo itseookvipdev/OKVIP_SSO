@@ -1,78 +1,13 @@
 const { v4: uuidv4 } = require("uuid");
-const mongoose = require("mongoose");
 const Hashids = require("hashids");
 const URL = require("url").URL;
 const hashids = new Hashids();
 const { genJwtToken } = require("./jwt_helper");
+const apiService = require("../services/apiService");
 
 const re = /(\S+)\s+(\S+)/;
-const SALT_ROUNDS = 10;
-
-console.log('process.env.MONGODB_URI', process.env.MONGODB_URI)
-// MongoDB Connection
-const connectDB = async () => {
-  try {
-    const dbURI = process.env.MONGODB_URI; // Replace with your MongoDB URI
-    await mongoose.connect(dbURI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true
-    });
-    console.log("Connected to MongoDB successfully");
-  } catch (error) {
-    console.error("Error connecting to MongoDB:", error);
-    process.exit(1);
-  }
-};
-
-// mongodb schema
-const UserSchema = new mongoose.Schema({
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  userId: { type: String, required: true, unique: true },
-  appPolicy: {
-    type: Map,
-    of: new mongoose.Schema({
-      role: { type: String },
-      shareEmail: { type: Boolean },
-    }),
-  },
-});
-
-const User = mongoose.model("User", UserSchema);
 const registerUser = async (req, res) => {
-  const { email, password, appPolicy } = req.body;
-
-  if (!email || !password) {
-    return res.status(400).json({ message: "Missing required fields." });
-  }
-
-  try {
-    // Check if the user already exists
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ message: "User already exists." });
-    }
-
-
-    // Create a new user
-    const newUser = new User({
-      email,
-      password: password,
-      userId: encodedId(),
-      appPolicy: {
-        ...appPolicy,
-        simple_sso_consumer: { role: "user", shareEmail: false },
-        sso_consumer: { role: "admin", shareEmail: true },
-      }
-    });
-
-    await newUser.save();
-
-    return res.redirect("/simplesso/login");
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ message: "Internal server error." });
-  }
+  return res.status(400).json({ message: "Registration is now handled by external API. Please use the main authentication system." });
 };
 // Note: express http converts all headers
 // to lower case.
@@ -132,16 +67,6 @@ const originAppName = {
   "http://localhost:3002": "simple_sso_consumer",
 };
 
-const userDB = {
-  "ravikishan63392@gmail.com": {
-    password: "test",
-    userId: encodedId(), // incase you dont want to share the user-email.
-    appPolicy: {
-      sso_consumer: { role: "admin", shareEmail: true },
-      simple_sso_consumer: { role: "user", shareEmail: false },
-    },
-  },
-};
 
 // these token are for the validation purpose
 const intrmTokenCache = {};
@@ -166,37 +91,30 @@ const generatePayload = async (ssoToken) => {
   const globalSessionToken = intrmTokenCache[ssoToken][0];
   const appName = intrmTokenCache[ssoToken][1];
   console.log('appName', appName)
-  const userEmail = sessionUser[globalSessionToken];
-  const user = await User.findOne({ email: userEmail });
-  const appPolicy = user.appPolicy.get(appName);
-  if(!appPolicy) return {}
-  const email = appPolicy.shareEmail === true ? userEmail : undefined;
-
-  const jsonObject = {
-    ...user,
-    _id: user._id.toString(), // Convert ObjectId to string
-    appPolicy: Object.fromEntries(user.appPolicy), // Convert Map to Object
-  };
+  const userInfo = sessionUser[globalSessionToken];
   
-  // Convert ObjectId within appPolicy
-  jsonObject.appPolicy = Object.entries(jsonObject.appPolicy).reduce((acc, [key, value]) => {
-    acc[key] = {
-      ...value,
-      _id: value._id.toString() // Convert nested ObjectId to string
-    };
-    return acc;
-  }, {});
+  if (!userInfo || !userInfo.userData) {
+    return {};
+  }
 
-  const appPolicyObject = jsonObject["appPolicy"][appName]
+  const user = userInfo.userData;
+  const tokens = userInfo.tokens;
+  const appPolicy = {
+    simple_sso_consumer: { role: "user", shareEmail: false },
+    sso_consumer: { role: "admin", shareEmail: true },
+  }[appName] || { role: "user", shareEmail: false };
+
+  const email = appPolicy.shareEmail === true ? userInfo.email : undefined;
+
   const payload = {
-    ...{...appPolicyObject},
-    ...{
-      email,
-      shareEmail: undefined,
-      uid: user.userId,
-      // global SessionID for the logout functionality.
-      globalSessionID: globalSessionToken,
-    },
+    ...appPolicy,
+    email,
+    shareEmail: undefined,
+    uid: user.id || encodedId(),
+    role: user.role || appPolicy.role,
+    globalSessionID: globalSessionToken,
+    userProfile: user,
+    accessToken: tokens?.data?.access_token || tokens?.access_token
   };
   return payload;
 };
@@ -245,40 +163,49 @@ const verifySsoToken = async (req, res, next) => {
   return res.status(200).json({ token });
 };
 const doLogin = async (req, res, next) => {
-  // do the validation with email and password
-  // but the goal is not to do the same in this right now,
-  // like checking with Datebase and all, we are skiping these section
   const { email, password } = req.body;
-  // if (!(userDB[email] && password === userDB[email].password)) {
-  //   return res.status(404).json({ message: "Invalid email and password" });
-  // }
+  
   if (!email || !password) {
     return res.status(400).json({ message: "Missing required fields." });
   }
 
-  // Check if the user already exists
-  const existingUser = await User.findOne({ email });
-  if (!existingUser) {
-    return res.status(400).json({ message: "User not found." });
-  }
+  try {
+    // Use external API for authentication
+    const loginResult = await apiService.login(email, password);
+    
+    if (!loginResult.success) {
+      return res.status(400).json({ message: loginResult.error || "Invalid credentials." });
+    }
+    console.log('loginResult', loginResult)
+    // Get user profile using the access token
+    const userProfileResult = await apiService.getUserProfile(loginResult.data.data.access_token);
+    
+    if (!userProfileResult.success) {
+      return res.status(400).json({ message: "Failed to get user profile." });
+    }
+    console.log('userProfileResult.data', userProfileResult.data)
+    // Store user session
+    const { serviceURL } = req.query;
+    const id = encodedId();
+    req.session.user = id;
+    sessionUser[id] = {
+      email: email,
+      tokens: loginResult.data,
+      userData: userProfileResult.data
+    };
 
-  const match = password == existingUser.password;
-  if (!match) {
-    return res.status(400).json({ message: "Invalid password." });
+    if (serviceURL == null) {
+      return res.redirect("/");
+    }
+    
+    const url = new URL(serviceURL);
+    const intrmid = encodedId();
+    storeApplicationInCache(url.origin, id, intrmid);
+    return res.redirect(`${serviceURL}?ssoToken=${intrmid}`);
+  } catch (error) {
+    console.error('Login error:', error);
+    return res.status(500).json({ message: "Internal server error." });
   }
-
-  // else redirect
-  const { serviceURL } = req.query;
-  const id = encodedId();
-  req.session.user = id;
-  sessionUser[id] = email;
-  if (serviceURL == null) {
-    return res.redirect("/");
-  }
-  const url = new URL(serviceURL);
-  const intrmid = encodedId();
-  storeApplicationInCache(url.origin, id, intrmid);
-  return res.redirect(`${serviceURL}?ssoToken=${intrmid}`);
 };
 
 const login = (req, res, next) => {
@@ -312,4 +239,26 @@ const login = (req, res, next) => {
     title: "SSO-Server | Login",
   });
 };
-module.exports = Object.assign({}, { doLogin, login, verifySsoToken, registerUser, connectDB });
+
+const refreshToken = async (req, res, next) => {
+  const { refresh_token } = req.body;
+  
+  if (!refresh_token) {
+    return res.status(400).json({ message: "Refresh token is required." });
+  }
+
+  try {
+    const refreshResult = await apiService.refreshToken(refresh_token);
+    
+    if (!refreshResult.success) {
+      return res.status(401).json({ message: refreshResult.error || "Invalid refresh token." });
+    }
+
+    return res.status(200).json(refreshResult.data);
+  } catch (error) {
+    console.error('Refresh token error:', error);
+    return res.status(500).json({ message: "Internal server error." });
+  }
+};
+
+module.exports = Object.assign({}, { doLogin, login, verifySsoToken, registerUser, refreshToken });

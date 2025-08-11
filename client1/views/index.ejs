@@ -1,4 +1,275 @@
 <% layout('boilerplate') -%>
-<h1>I am the <%= what %> </h1>
+<h1><%= what %></h1>
 
-<a href="/logout">Logout</a>
+<div style="margin: 20px 0;">
+  <h2>User Information from SSO Server</h2>
+  
+  <% if (userProfile) { %>
+    <div style="background: #e8f4f8; padding: 15px; border-radius: 5px; margin: 10px 0;">
+      <h3>User Profile (from External API via Server):</h3>
+      <table style="width: 100%; border-collapse: collapse;">
+        <% if (userProfile.id) { %>
+        <tr style="border-bottom: 1px solid #ddd;">
+          <td style="padding: 8px; font-weight: bold;">User ID:</td>
+          <td style="padding: 8px;"><%= userProfile.id %></td>
+        </tr>
+        <% } %>
+        <% if (userProfile.email) { %>
+        <tr style="border-bottom: 1px solid #ddd;">
+          <td style="padding: 8px; font-weight: bold;">Email:</td>
+          <td style="padding: 8px;"><%= userProfile.email %></td>
+        </tr>
+        <% } %>
+        <% if (userProfile.first_name || userProfile.last_name) { %>
+        <tr style="border-bottom: 1px solid #ddd;">
+          <td style="padding: 8px; font-weight: bold;">Name:</td>
+          <td style="padding: 8px;"><%= userProfile.first_name || '' %> <%= userProfile.last_name || '' %></td>
+        </tr>
+        <% } %>
+        <% if (userProfile.role) { %>
+        <tr style="border-bottom: 1px solid #ddd;">
+          <td style="padding: 8px; font-weight: bold;">Role:</td>
+          <td style="padding: 8px;"><%= userProfile.role %></td>
+        </tr>
+        <% } %>
+      </table>
+      
+      <details style="margin-top: 10px;">
+        <summary style="cursor: pointer;">View Full Profile Data</summary>
+        <pre style="margin-top: 10px;"><%= JSON.stringify(userProfile, null, 2) %></pre>
+      </details>
+    </div>
+  <% } else { %>
+    <div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin: 10px 0;">
+      <p>User profile not available in session. Please login again through SSO.</p>
+    </div>
+  <% } %>
+  
+  <% if (user) { %>
+    <details style="margin-top: 20px;">
+      <summary style="cursor: pointer;">View SSO Session Data</summary>
+      <div style="background: #f0f0f0; padding: 15px; border-radius: 5px; margin: 10px 0;">
+        <pre><%= JSON.stringify(user, null, 2) %></pre>
+      </div>
+    </details>
+  <% } %>
+  
+  <!-- LocalStorage Management Section -->
+  <div style="margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 5px;">
+    <h3>LocalStorage Management</h3>
+    
+    <div style="margin: 10px 0;">
+      <button onclick="saveToLocalStorage()" style="padding: 8px 15px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;">
+        Save to LocalStorage
+      </button>
+      
+      <button onclick="loadFromLocalStorage()" style="padding: 8px 15px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;">
+        Load from LocalStorage
+      </button>
+      
+      <button onclick="clearLocalStorage()" style="padding: 8px 15px; background: #ffc107; color: black; border: none; border-radius: 4px; cursor: pointer; margin-right: 10px;">
+        Clear LocalStorage
+      </button>
+      
+      <button onclick="viewLocalStorage()" style="padding: 8px 15px; background: #6c757d; color: white; border: none; border-radius: 4px; cursor: pointer;">
+        View LocalStorage
+      </button>
+    </div>
+    
+    <div id="localStorageContent" style="margin-top: 15px; display: none;">
+      <h4>Current LocalStorage Data:</h4>
+      <pre id="localStorageData" style="background: white; padding: 10px; border-radius: 4px; overflow-x: auto;"></pre>
+    </div>
+    
+    <div id="statusMessage" style="margin-top: 10px; padding: 10px; border-radius: 4px; display: none;"></div>
+  </div>
+</div>
+
+<a href="/logout" onclick="handleLogout(event)" style="display: inline-block; margin-top: 20px; padding: 10px 20px; background: #dc3545; color: white; text-decoration: none; border-radius: 5px;">Logout</a>
+
+<script>
+// Pass server data to JavaScript
+const serverUserData = <%- JSON.stringify(user || null) %>;
+const serverUserProfile = <%- JSON.stringify(userProfile || null) %>;
+
+// LocalStorage keys
+const STORAGE_KEYS = {
+  USER: 'sso_user',
+  USER_PROFILE: 'sso_user_profile',
+  ACCESS_TOKEN: 'sso_access_token',
+  LAST_UPDATED: 'sso_last_updated'
+};
+
+// Initialize - Auto-save to localStorage when page loads with user data
+window.addEventListener('DOMContentLoaded', () => {
+  if (serverUserData || serverUserProfile) {
+    autoSaveToLocalStorage();
+  }
+});
+
+// Auto-save function (runs on page load)
+function autoSaveToLocalStorage() {
+  try {
+    const dataToStore = {
+      user: serverUserData,
+      userProfile: serverUserProfile,
+      accessToken: serverUserData?.accessToken || null,
+      timestamp: new Date().toISOString()
+    };
+    
+    // Save individual items
+    if (serverUserData) {
+      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(serverUserData));
+    }
+    if (serverUserProfile) {
+      localStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(serverUserProfile));
+    }
+    if (serverUserData?.accessToken) {
+      localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, serverUserData.accessToken);
+    }
+    localStorage.setItem(STORAGE_KEYS.LAST_UPDATED, new Date().toISOString());
+    
+    console.log('User data auto-saved to localStorage');
+  } catch (error) {
+    console.error('Failed to auto-save to localStorage:', error);
+  }
+}
+
+// Manual save to localStorage
+function saveToLocalStorage() {
+  try {
+    autoSaveToLocalStorage();
+    showStatus('Data saved to localStorage successfully!', 'success');
+  } catch (error) {
+    showStatus('Failed to save to localStorage: ' + error.message, 'error');
+  }
+}
+
+// Load from localStorage
+function loadFromLocalStorage() {
+  try {
+    const storedUser = localStorage.getItem(STORAGE_KEYS.USER);
+    const storedProfile = localStorage.getItem(STORAGE_KEYS.USER_PROFILE);
+    const storedToken = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
+    const lastUpdated = localStorage.getItem(STORAGE_KEYS.LAST_UPDATED);
+    
+    if (!storedUser && !storedProfile) {
+      showStatus('No data found in localStorage', 'warning');
+      return;
+    }
+    
+    const data = {
+      user: storedUser ? JSON.parse(storedUser) : null,
+      userProfile: storedProfile ? JSON.parse(storedProfile) : null,
+      accessToken: storedToken,
+      lastUpdated: lastUpdated
+    };
+    
+    console.log('Loaded from localStorage:', data);
+    showStatus(`Data loaded from localStorage (Last updated: ${lastUpdated || 'Unknown'})`, 'success');
+    
+    // Display loaded data
+    document.getElementById('localStorageData').textContent = JSON.stringify(data, null, 2);
+    document.getElementById('localStorageContent').style.display = 'block';
+  } catch (error) {
+    showStatus('Failed to load from localStorage: ' + error.message, 'error');
+  }
+}
+
+// Clear localStorage
+function clearLocalStorage() {
+  if (confirm('Are you sure you want to clear all SSO data from localStorage?')) {
+    try {
+      Object.values(STORAGE_KEYS).forEach(key => {
+        localStorage.removeItem(key);
+      });
+      showStatus('LocalStorage cleared successfully!', 'success');
+      document.getElementById('localStorageContent').style.display = 'none';
+    } catch (error) {
+      showStatus('Failed to clear localStorage: ' + error.message, 'error');
+    }
+  }
+}
+
+// View localStorage content
+function viewLocalStorage() {
+  try {
+    const data = {};
+    Object.entries(STORAGE_KEYS).forEach(([name, key]) => {
+      const value = localStorage.getItem(key);
+      if (value) {
+        try {
+          data[name] = JSON.parse(value);
+        } catch {
+          data[name] = value;
+        }
+      }
+    });
+    
+    if (Object.keys(data).length === 0) {
+      showStatus('LocalStorage is empty', 'warning');
+      document.getElementById('localStorageContent').style.display = 'none';
+    } else {
+      document.getElementById('localStorageData').textContent = JSON.stringify(data, null, 2);
+      document.getElementById('localStorageContent').style.display = 'block';
+      showStatus('LocalStorage data loaded', 'success');
+    }
+  } catch (error) {
+    showStatus('Failed to view localStorage: ' + error.message, 'error');
+  }
+}
+
+// Handle logout - clear localStorage
+function handleLogout(event) {
+  if (confirm('Do you want to clear localStorage data on logout?')) {
+    clearLocalStorage();
+  }
+  // Continue with normal logout
+  return true;
+}
+
+// Show status message
+function showStatus(message, type) {
+  const statusDiv = document.getElementById('statusMessage');
+  statusDiv.textContent = message;
+  statusDiv.style.display = 'block';
+  
+  // Set color based on type
+  switch(type) {
+    case 'success':
+      statusDiv.style.backgroundColor = '#d4edda';
+      statusDiv.style.color = '#155724';
+      statusDiv.style.border = '1px solid #c3e6cb';
+      break;
+    case 'error':
+      statusDiv.style.backgroundColor = '#f8d7da';
+      statusDiv.style.color = '#721c24';
+      statusDiv.style.border = '1px solid #f5c6cb';
+      break;
+    case 'warning':
+      statusDiv.style.backgroundColor = '#fff3cd';
+      statusDiv.style.color = '#856404';
+      statusDiv.style.border = '1px solid #ffeaa7';
+      break;
+    default:
+      statusDiv.style.backgroundColor = '#d1ecf1';
+      statusDiv.style.color = '#0c5460';
+      statusDiv.style.border = '1px solid #bee5eb';
+  }
+  
+  // Auto-hide after 5 seconds
+  setTimeout(() => {
+    statusDiv.style.display = 'none';
+  }, 5000);
+}
+
+// API to get stored data (for other pages/components)
+window.getSSOData = function() {
+  return {
+    user: localStorage.getItem(STORAGE_KEYS.USER) ? JSON.parse(localStorage.getItem(STORAGE_KEYS.USER)) : null,
+    userProfile: localStorage.getItem(STORAGE_KEYS.USER_PROFILE) ? JSON.parse(localStorage.getItem(STORAGE_KEYS.USER_PROFILE)) : null,
+    accessToken: localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN),
+    lastUpdated: localStorage.getItem(STORAGE_KEYS.LAST_UPDATED)
+  };
+};
+</script>

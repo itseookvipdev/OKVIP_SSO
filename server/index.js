@@ -3,9 +3,6 @@ dotenv.config({ path: '.env' })
 const express = require("express");
 const morgan = require("morgan");
 const engine = require("ejs-mate");
-const session = require("express-session");
-const MongoStore = require("connect-mongo");
-const mongoose = require("mongoose");
 const router = require("./router");
 const cors = require("cors");
 const cookieSession = require('cookie-session');
@@ -13,7 +10,7 @@ const controller = require("./controller");
 
 const app = express();
 
-controller.connectDB();
+console.log('SSO Server starting with external API authentication...');
 
 app.use(cookieSession({
   name: 'session',
