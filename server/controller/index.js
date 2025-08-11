@@ -45,13 +45,15 @@ const appTokenFromRequest = fromAuthHeaderAsBearerToken();
 // app token to validate the request is coming from the authenticated server only.
 const appTokenDB = {
   sso_consumer: "zzWKUktInQIj0O8",
-  simple_sso_consumer: "1g0jJwGmRQhJwvwNOrY4i90kD0m"
+  simple_sso_consumer: "1g0jJwGmRQhJwvwNOrY4i90kD0m",
+  demo_consumer: "zzWKUktInQIj0O8"
 };
 
 const alloweOrigin = {
   "http://localhost:3000": true,
   "http://localhost:3001": true,
   "http://localhost:3002": false,
+  "http://sso-consumer.okvip.business": true
 };
 
 const deHyphenatedUUID = () => uuidv4().replace(/-/gi, "");
@@ -65,6 +67,7 @@ const sessionApp = {};
 const originAppName = {
   "http://localhost:3001": "sso_consumer",
   "http://localhost:3002": "simple_sso_consumer",
+  "http://sso-consumer.okvip.business": "demo_consumer"
 };
 
 

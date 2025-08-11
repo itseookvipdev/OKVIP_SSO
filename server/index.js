@@ -20,9 +20,11 @@ app.use(cookieSession({
   maxAge: 24 * 60 * 60 * 1000 // 24 hours
 }))
 
+let clients = process.env.CLIENTS.split(',')
+
 app.use(
   cors({
-    origin: [process.env.CLIENT1], // Client URL
+    origin: clients, // Client URL
     credentials: true, // Allow cookies in requests
   })
 );
